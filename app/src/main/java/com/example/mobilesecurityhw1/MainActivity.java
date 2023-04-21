@@ -6,12 +6,14 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.hardware.camera2.CameraMetadata;
 import android.media.AudioManager;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -26,7 +28,39 @@ import androidx.annotation.RequiresApi;
 public class MainActivity extends AppCompatActivity {
     private Button main_BTN_login;
     private EditText main_input_password;
-    private boolean flatStatus = false;// false as default
+    private boolean isStill = false;// false as default
+
+    private SensorManager mSensorManager;
+    private Sensor mAccelerometer;
+    private SensorEventListener sensorEventListener = new SensorEventListener() {
+        @Override
+        public void onSensorChanged(SensorEvent sensorEvent) {
+
+            if (sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                float x = sensorEvent.values[0];
+                float y = sensorEvent.values[1];
+                float z = sensorEvent.values[2];
+
+                double magnitude = Math.sqrt(x * x + y * y + z * z);
+                if (magnitude < 9.85) {
+                    // Device is still
+                    isStill = true;
+                    //Log.d("gilazani", "onSensorChanged: true");
+
+                } else {
+                    // Device is moving
+                    isStill = false;
+                    //Log.d("gilazani", "onSensorChanged: false");
+                }
+            }
+
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int i) {
+            //not needed
+        }
+    };
 
 
     @Override
@@ -37,6 +71,23 @@ public class MainActivity extends AppCompatActivity {
         initViews();
 
         main_BTN_login.setOnClickListener(view -> {loginAttempt();});
+
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        mSensorManager.unregisterListener(sensorEventListener);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        mSensorManager.registerListener(sensorEventListener, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     private void loginAttempt() {
@@ -50,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean checkUserAccess() {
-        return (checkPasswordEqMobileProvider() && checkBluetoothOn() && checkPhoneBattery() && checkIsMusicPlaying());
+        return (checkPasswordEqMobileProvider() && checkBluetoothOn() && checkPhoneBattery() && checkIsMusicPlaying() && isStill);
     }
 
 
@@ -65,7 +116,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean checkPhoneBattery() {
         BatteryManager batteryManager = (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
         int batteryPercentage = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-        return (batteryPercentage > 50);
+        return (batteryPercentage > 30);
     }
 
     private boolean checkBluetoothOn() {

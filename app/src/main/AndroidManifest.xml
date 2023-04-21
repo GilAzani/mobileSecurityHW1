@@ -34,6 +34,9 @@
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
+
     </application>
+
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="true" />
 
 </manifest>
